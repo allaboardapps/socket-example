@@ -1,29 +1,72 @@
 <!doctype html>
 <html>
   <head>
-    <title>Server Page</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font: 13px Helvetica, Arial; height: 500px; }
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages li { padding: 5px 10px; }
-      #messages li:nth-child(odd) { background: #eee; }
-    </style>
+    <title>Broadcast Page</title>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
   </head>
   <body>
-    <h1>The Server Page</h1>
-    <p>Type some stuff and check out the client</p>
+    <textarea id="source">
+
+    </textarea>
+
+
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="js/remark.js"></script>
     <script>
       $(document).ready(function() {
-        console.log("doc ready!");
-
+        var interval;
         var socket = io();
-        $("body").on("click", function() {
-          console.log("click received!");
-          socket.emit('caption message', "This is a test message");
+
+        function broadcastStatus(slideNumber) {
+          console.log("sending status update of " + slideNumber);
+          socket.emit('statusUpdate', slideNumber);
+        }
+
+        // This fires before remark captures keystroke
+        $("body").keyup(function(event) {
+          var currentSlideNumber = Number.parseInt(window.location.hash.match(/\d+/) | 0[1]);
+          var newSlideNumber = 0;
+          var bKey = 'b';
+
+          console.log("We are on slide " + currentSlideNumber);
+
+          clearInterval(interval);
+          // if you type any arrow or space bar, send redirect to the client, and set status every three seconds
+          if (event.which == 39 || event.which == 32 || event.which == 38 || event.which == 37 || event.which == 40) {
+            socket.emit('redirect', currentSlideNumber);
+            console.log("We are redirecting to slide " + currentSlideNumber);
+
+            interval = setInterval(function() {
+              broadcastStatus(currentSlideNumber);
+            }, 3000);
+          }
+          // if you type "s", resend the status
+          if (event.which == 83) {
+            socket.emit('redirect', currentSlideNumber);
+            interval = setInterval(function() {
+              broadcastStatus(currentSlideNumber);
+            }, 3000);
+          }
+          if (event.which == 66) {
+            console.log("sending a B");
+            socket.emit('blackout', bKey);
+          }
+          if (event.which == 70) {
+            console.log("sending an F");
+            socket.emit('fullscreen', event.which == 70);
+          }
         });
+      });
+    </script>
+
+    <script>
+      var slideshow = remark.create({
+        sourceUrl: 'will.md',
+        ratio: '16:9',
+        navigation: {
+          scroll: false,
+        },
       });
     </script>
   </body>
